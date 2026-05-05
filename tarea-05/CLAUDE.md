@@ -1,34 +1,73 @@
 # Tarea 05 — Agentic Loop y stop_reason
 
+## Status: COMPLETADA ✓
+
 ## Objetivo
-Implementar un agente que clasifica leads de Calendly identificando los 3 anti-patterns clásicos del agentic loop.
+Implementar un agente que clasifica leads de Calendly identificando y evitando los 3 anti-patterns clásicos del agentic loop.
 
-## Contexto
-Un agente que recibe leads de Calendly y debe clasificarlos en categorías de prioridad. El agente tiene acceso a una herramienta para buscar información del prospect en una base de datos.
+## Implementación
 
-## Anti-patterns a Identificar
-1. **Parsear texto de respuestas del modelo** — Confiar en parse manual de `content[0].text` para lógica crítica
-2. **Usar `max_iterations` como stop condition** — Creer que limitar iteraciones es suficiente para garantizar salida
-3. **Usar contenido textual como signal determinístico** — Confiar en que el modelo siempre diga "FIN" o similar
+### Entrada
+- **Nombre**: string del prospect
+- **Budget**: número o "ninguno"
 
-## Preguntas Guía
-1. ¿Cuál es la diferencia entre `stop_reason="tool_use"` vs `stop_reason="end_turn"`?
-2. ¿Qué sucede si el modelo no sigue exactamente el formato que esperas en la respuesta?
-3. ¿Por qué `max_iterations` solo limita intentos pero no garantiza que el agente termine correctamente?
-4. ¿Cómo debería el agente **conocer** que debe dejar de iterar?
+### Salida
+- **Prioridad**: ALTA, MEDIA, BAJA, o REQUIERE_INFO
 
-## Estructura Esperada
+### Flujo del Agente
+1. **Iteración 1**: `stop_reason=tool_use` → usa `buscar_info` (nombre, budget)
+2. **Iteración 2**: `stop_reason=tool_use` → usa `clasificar_lead` (termina)
+
+### Reglas de Clasificación
+- Budget > 50000 → **ALTA**
+- Budget 20000-50000 → **MEDIA**
+- Budget < 20000 → **BAJA**
+- Budget = 0 o None → **REQUIERE_INFO**
+
+### Anti-patterns Evitados
+
+#### ❌ Anti-pattern #1: Parsear texto
+**Lo malo:** Confiar en `if "ALTA" in response.content[0].text`
+**La solución:** Las herramientas retornan JSON estructurado con parámetro `prioridad`
+
+#### ❌ Anti-pattern #2: `max_iterations` como control principal
+**Lo malo:** Creer que `max_iterations=5` garantiza que el agente clasifique
+**La solución:** El control está en **usar la herramienta `clasificar_lead`**, no en iteraciones
+- Si llega a `max_iterations` sin clasificar → retorna `"max_iterations"`
+- `max_iterations` es solo un fallback de seguridad
+
+#### ❌ Anti-pattern #3: Señales textuales
+**Lo malo:** Esperar que el modelo diga "FIN" o "TERMINADO"
+**La solución:** Confiar en `stop_reason` y herramientas estructuradas
+- `stop_reason="tool_use"` → continúa
+- `stop_reason="end_turn"` → terminó
+
+## Ejecución
+
+```powershell
+cd D:\KREANTE\z__learning\Kreante\mayo-4\tarea-05
+python agent.py
 ```
-tarea-05/
-├── CLAUDE.md (este archivo)
-├── README.md (instrucciones y ejecución)
-├── agent.py (implementación del agente)
-└── logs/ (validaciones y traces)
+
+### Ejemplo Normal
+```
+Nombre: Juan
+Budget: 50000
+→ Prioridad: MEDIA
 ```
 
-## Notas
-- Python únicamente
-- Usa el SDK de Anthropic (cliente `anthropic`)
-- API key en variable de entorno `ANTHROPIC_API_KEY`
-- Incluye logs detallados de cada iteración del loop
-- Documenta el `stop_reason` de cada respuesta
+### Ejemplo con max_iterations
+```powershell
+python -c "from agent import clasificar; print(clasificar('Juan', 50000, max_iterations=1)['prioridad'])"
+→ Prioridad: max_iterations
+```
+
+## Conceptos Clave Aprendidos
+1. **stop_reason es el signal confiable**, no el parsing de texto
+2. **Herramientas estructuradas** evitan ambigüedad
+3. **max_iterations es fallback, no control** — el verdadero control está en qué herramientas usa el modelo
+4. El agente debe tener una herramienta explícita que indique "terminé" (clasificar_lead)
+
+## Archivos
+- `agent.py` — Implementación completa del loop agentico
+- `CLAUDE.md` — Este archivo (contexto de la tarea)

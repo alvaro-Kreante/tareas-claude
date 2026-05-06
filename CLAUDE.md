@@ -40,12 +40,16 @@ mayo-4/
 - O usa Claude Code: `claude code tarea-NN`
 - Consulta el `CLAUDE.md` de esa tarea para detalles específicos
 
-## Setup
-- SDK: `anthropic` (Anthropic SDK para Python)
-- API Key: variable de entorno `ANTHROPIC_API_KEY`
-- **Cliente centralizado:** todas las tareas importan desde `sdk.client`
+## SDKs disponibles
 
-### Desde cualquier tarea:
+El proyecto soporta dos SDKs en paralelo. Las tareas existentes (05-07) usan el Anthropic SDK. Los scripts nuevos usan el Claude Agent SDK.
+
+### Anthropic SDK — tareas 05-07
+
+- **Paquete:** `anthropic`
+- **Cliente:** `sdk/client.py`
+- **Patrón:** síncrono, `client.messages.create()`
+
 ```python
 from sdk import client, MODEL
 
@@ -56,22 +60,42 @@ response = client.messages.create(
 )
 ```
 
+### Claude Agent SDK — scripts nuevos (`*_claude_sdk.py`)
+
+- **Paquete:** `claude-agent-sdk` v0.1.75
+- **Cliente:** `sdk/client_claude_sdk.py`
+- **Patrón:** asíncrono, `async for message in query(...)`
+- **Naming:** archivos nuevos terminan en `_claude_sdk.py`
+
+```python
+from sdk.client_claude_sdk import query, ClaudeAgentOptions, AgentDefinition, MODEL
+
+options = ClaudeAgentOptions(model=MODEL)
+
+async for message in query(prompt="...", options=options):
+    if isinstance(message, AssistantMessage):
+        for block in message.content:
+            if isinstance(block, TextBlock):
+                print(block.text)
+    elif isinstance(message, ResultMessage):
+        print(f"Costo: ${message.total_cost_usd:.6f}")
+```
+
 **Configuración (archivo `.env`):**
 ```env
 ANTHROPIC_API_KEY=tu-api-key-aqui
-CLAUDE_MODEL=claude-haiku-4-5-20251001
+CLAUDE_MODEL=claude-haiku-4-5-20251001       # Anthropic SDK (ID completo)
+CLAUDE_AGENT_MODEL=haiku                     # Claude Agent SDK (alias: haiku | sonnet | opus)
 ```
-- API key configurada ✓
-- Modelo: Haiku 4.5 (configurable)
-
-- Cada tarea incluye `README.md` con instrucciones y logs de validación
 
 ## Setup Completado ✓
 - ✅ Carpetas de tareas (tarea-05, tarea-06, tarea-07) creadas
 - ✅ CLAUDE.md específico en cada tarea con preguntas guía
-- ✅ SDK centralizado (`sdk/client.py`) con cliente Anthropic
-- ✅ `.env` configurado con API key y modelo (claude-haiku-4-5-20251001)
-- ✅ `test_sdk.py` validado y funcionando
+- ✅ `sdk/client.py` — cliente Anthropic SDK (tareas 05-07)
+- ✅ `sdk/client_claude_sdk.py` — cliente Claude Agent SDK (scripts nuevos)
+- ✅ `.env` configurado con API key y modelos
+- ✅ `test_sdk.py` — validado (Anthropic SDK)
+- ✅ `test_claude_sdk.py` — validado (Claude Agent SDK)
 - ✅ `.gitignore` protege `.env` de commits
 
 ## Convenciones
@@ -81,6 +105,6 @@ CLAUDE_MODEL=claude-haiku-4-5-20251001
 - Documentación en español
 - **Lenguaje:** Python únicamente
 - **Versionado:** Git (commits regulares)
-- **SDK:** Claude API (Anthropic SDK) - Haiku 4.5
+- **Naming:** scripts del Claude Agent SDK terminan en `_claude_sdk.py`
 - **Configuración:** API key en `.env`
 - **Documentación:** `README.md` + logs de validación en cada tarea
